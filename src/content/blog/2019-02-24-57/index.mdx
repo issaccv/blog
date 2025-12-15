@@ -1,0 +1,59 @@
+---
+title: "dnsmasq的基本配置(一)"
+description: "多数时候dnsmasq只是一个小小的桥梁，它只能承载那些不大的希望。Dnsmasq是一个非常好用的轻量DNS，但是随着Pi-hole的出现，传统的命令行与配置文件的方式在家用的环境下逐渐消失，但是在一些小规..."
+date: 2019-02-24
+tags: []
+# image: './banner.png'
+authors: ['issacc']
+---
+
+多数时候dnsmasq只是一个小小的桥梁，它只能承载那些不大的希望。
+
+`Dnsmasq`是一个非常好用的轻量DNS，但是随着`Pi-hole`的出现，传统的命令行与配置文件的方式在家用的环境下逐渐消失，但是在一些小规模的服务器环境上，`dnsmasq`依然有着其独特的优势##安装dnsmasq的安装非常简单，你可以选择从源码编译安装，当然对于dnsmasq这样一个已经非常长时间不更新的软件，我们只需要从包管理器那里安装。
+
+```shell
+bash apt install dnsmasq -y
+```
+
+安装完成之后在`/etc/`目录下会出现`dnsmasq.conf`文件和`dnsmasq.d`目录##配置dnsmasq.conf默认就有全部的参数，但是如果只拿dnsmasq用做DNS服务器来说，很大一部分我们根本用不上，此时可以先备份这个文件，然后新建一个自己的配置文件
+
+```shell
+cp dnsmasq.conf dnsmasq.conf.bak
+touch dnsmasq.conf
+```
+
+之后我们就可以细细研究了
+
+```conf
+pythonresolv-file=/etc/resolv.dnsmasq.conf ##该参数指定了dnsmasq的上游DNS，类似resolv.conf
+strict-order ##严格按照上述文件中的DNS顺序，对于国内喜欢“抢答”的DNS很有用
+no-resolv ##忽略本机的resolv.conf文件不推荐，这样操作对于后续更改并不是非常有利
+no-poll ##dnsmasq不检测resolv.conf等文件的变化这意味着更改之后需要重启dnsmasq
+no-hosts ##忽略本机的hosts文件
+addn-hosts=/etc/banner_add_hosts ##附加的hosts
+cache-size=10000 ##dnsmasq的缓存条目数这是上限，但是缓存的条目依然会遵循ttl
+conf-dir=/etc/dnsmasq.d/*.conf ##附加的配置文件该目录下所有.conf都会被认为是配置文件
+clear-on-reload ##重启dnsmasq之后清除缓存
+listen-address=127.0.0.1,192.168.1.2 ##监听地址，局域网可以不填这一项
+```
+常用的dns配置就是这些，配合`hosts`和一些附加的配置文件，我们可以做到动态的去广告。接下来重启`dnsmasq`
+
+```shell
+bash systemctl restart dnsmasq
+```
+
+重启完成后，需要更改`/etc/resolv.conf`，添加`nameserver127.0.0.1`，并注释掉其他条目，这样就算初步配好了dnsmasq安装完成后使用
+
+```shell
+sh systemctl status dnsmasq
+```
+
+查看服务运行情况，如果对应的配置文件不是`/etc/dnsmasq.conf`，而是`/var/run/dnsmasq/resolv.conf`，请参照另一篇文章解决[postcid="31"/]##优化由于部分特殊需求，常常需要不同的DNS为访问加速，这对于经常使用国外资源的人群来说非常常见，`dnsmasq`为此提供了`address`参数，可以将指定域名转交给特定的上游DNS以获得最佳体验。
+
+### DNS优化在`/etc/dnsmasq.d`下新建一个附加配置文件`speed.conf`
+
+```conf
+address=/.taobao.com/119.29.29.29address=/.google.com/8.8.8.8
+```
+
+这样就简单的实现了一不同域名不同DNS查询的功能，对于apple的一些域名我们可以强制使用香港服务器当然部分开源项目通过对特定域名抓取实现了基于DNS的广告屏蔽功能，相关的项目在github上一搜一堆，这里就不再详述了###hosts优化在addn-hosts指定的文件中添加`hosts`条目，等同于在`/etc/hosts`中添加。当然，在addn-hosts中添加不会更改已有的hosts文件，这对于一些具有特殊要求的群体可以实现快速的hosts切换等功能。

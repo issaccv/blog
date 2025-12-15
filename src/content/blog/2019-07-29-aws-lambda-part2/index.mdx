@@ -1,0 +1,200 @@
+---
+title: "AWS Lambda：年轻人的第一次FaaS（二）"
+description: "上一篇我们大致了解了如何将现有项目迁移到FaaS。由于FaaS的特性，我们在部署的过程中不得不舍弃了基于sqlite的缓存，这使得在实际使用的过程中，每一次的调用等待时间较长，如果能进一步将数据缓存在云中，不仅可..."
+date: 2019-07-29
+tags: []
+image: './cover.webp'
+authors: ['issacc']
+---
+
+上一篇我们大致了解了如何将现有项目迁移到FaaS。由于FaaS的特性，我们在部署的过程中不得不舍弃了基于sqlite的缓存，这使得在实际使用的过程中，每一次的调用等待时间较长，如果能进一步将数据缓存在云中，不仅可以降低Lambda函数的计费时间，还可以提高使用体验。
+
+## DynamoDB简介
+
+PT-Gen本身依赖的是sqlite作为缓存，在AWS的服务中我们可以使用DynamoDB作为缓存。DynamoDB是一个键值和文档数据库，从迁移角度讲，它能应付大部分的使用场景。作为一个白嫖党，我更关心它的定价。好在DynamoDB有着免费的25GB储存和25WCU/RCU。在同一区域的AWS内部，DynamoDB与其他服务传输并不收费。可见，免费套餐对于PT-Gen这样的小型函数来说绰绰有余。对于AllinAPI的AWS来说，官方提供了一个boto3的库，让我们能够在自己的函数中方便的调用AWS的各种资源。[相关文档](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/dynamodb.html)较为详细，但是这里要说明一下，boto3有两种调用资源的方式，一种是`resource`另一种是`client`，前者面向对象，后者面向更底层的API。
+
+## 构建缓存
+
+### 本地开发
+
+我们可以通过aws-cli直接创建Table，也可以使用Python进行创建。在开发阶段，我们需要一个本地运行的DynamoDB来把控整个表的结构并熟悉boto3。AWS提供了一个可以本地运行的DynamoDB，但是由于依赖jre6，我选择了另一个开源的替代品[dynalite](https://github.com/mhart/dynalite)，也是基于nodejs构建。这里不选择`serverless-offline`和`serverless-dynamodb-local`是因为后者会在Windows环境下报错。
+
+```sh
+npm install -g dynalite
+```
+安装完成dynalite之后，我们可以直接运行dynalite，默认的数据是存在内存中的，终止程序即销毁数据，当然dynalite也提供了较为丰富的参数，尽可能模拟DynamoDB的真实使用环境。
+
+在命令行中输入`dynalite`，一个DynamoDB就会监听在本地的4567端口上。接下来我们进行表的创建。
+
+```python
+import os
+import boto3
+
+dynamodb = boto3.resource(
+    "dynamodb", region_name="localhost", endpoint_url="http://localhost:4567"
+)
+# Create the DynamoDB table.
+table = dynamodb.create_table(
+    TableName="ptgen",
+    KeySchema=[
+        {"AttributeName": "site", "KeyType": "HASH"},
+        {"AttributeName": "sid", "KeyType": "RANGE"},
+    ],
+    AttributeDefinitions=[
+        {"AttributeName": "site", "AttributeType": "S"},
+        {"AttributeName": "sid", "AttributeType": "S"},
+    ],
+    ProvisionedThroughput={"ReadCapacityUnits": 5, "WriteCapacityUnits": 5},
+)
+# Wait until the table exists.
+table.meta.client.get_waiter("table_exists").wait(
+    TableName="ptgen"
+)
+# Print meta-data about the table.
+print(table.item_count)
+```
+这完全按照AWS给出的样例改写出来，我们以site和sid为索引，预置读写容量模式，创建了一个名为`ptgen`的表。本地运行时，我们需要等待大约5s，才会有0输出，这是因为`dynalite`模拟了表创建的所需时间。创建完成后，我们可以大致以如下的模式对表进行操作
+
+```python
+dynamodb = boto3.resource(
+    "dynamodb", region_name="localhost", endpoint_url="http://localhost:4567"
+)
+table = dynamodb.Table("ptgen")
+# 写入数据
+table.put_item(
+    Item={
+        "site": site,
+        "sid": sid,
+        "create_time": int(time.time()),
+    }
+)
+# 读取数据
+response = table.get_item(Key={"site": site, "sid": sid})
+# 查询数据
+response = table.scan(
+    FilterExpression=Attr("site").eq("epic") & Attr("sid").eq("outerwilds")
+)
+```
+这里说明一点，读取的方式并不“安全”，对于其response，大致如下
+```json
+{
+    "ResponseMetadata": {
+        "RequestId": "NXZVSUVNZHNCSIML6RVXGHOQ0UQ7JNWKPQNXGDIEPQX04XZJS0M2",
+        "PStatusCode": 200,
+        "HTTPHeaders": {
+            "x-amzn-requestid": "NXZVSUVNZHNCSIML6RVXGHOQ0UQ7JNWKPQNEPQX04XZJS0M2",
+            "x-amz-crc32": "2745614147",
+            "content-type": "application/x-amz-json-1.0",
+            "content-length": "2",
+            "date": "Mon,29Jul201904:35:44GMT",
+            "connection": "keep-alive",
+        },
+        "RetryAttempts": 0,
+    }
+}
+```
+可以看到未读取到数据时，没有Items这一键值。对于查询数据的scan方法，即使没有查询到数据，也会返回空Items
+```json
+{
+  "Items": [],
+  "Count": 0,
+  "ScannedCount": 1,
+  "ResponseMetadata": {
+    "RequestId": "BAG6BGYV9ZQC3LFRFIFM9ZSIM0KTN5U62Q3TXOF345XDLAIZZ50J",
+    "HTTPStatusCode": 200,
+    "HTTPHeaders": {
+      "x-amzn-requestid": "BAG6BGYV9ZQC3LFRFIFM9ZSIM0KTN5U62Q3TXOF345XDLAIZZ50J",
+      "x-amz-crc32": "1499768949",
+      "content-type": "application/x-amz-json-1.0",
+      "content-length": "39",
+      "date": "Mon,29Jul201908:33:58GMT",
+      "connection": "keep-alive"
+    },
+    "RetryAttempts": 0
+  }
+}
+```
+这两种不同的调用方式我没有比较性能，因为对于缓存表来说，这一延迟远远小于网络IO时间。
+
+### Serverless设置
+
+在本地调试过后，我们需要修改`serverless.yml`，给这个函数增添DynamoDB资源，并指定Table名称
+```yaml
+service: ptgen
+
+provider:
+  name: aws
+  runtime: python3.6
+  stage: dev
+  region: ap-southeast-1
+  memorySize: 512
+  environment:
+    USERS_TABLE: ${self:custom.tableName}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        - { "Fn::GetAtt": ["UsersDynamoDBTable", "Arn"] }
+
+plugins:
+  - serverless-wsgi
+  - serverless-python-requirements
+
+custom:
+  tableName: 'ptgen-table-${self:provider.stage}'
+  wsgi:
+    app: app.app
+    packRequirements: false
+
+functions:
+  app:
+    handler: wsgi_handler.handler
+    events:
+      - http: ANY /
+      - http: 'ANY {proxy+}'
+
+resources:
+  Resources:
+    UsersDynamoDBTable:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        TableName: ${self:custom.tableName}
+        AttributeDefinitions:
+          - AttributeName: site
+            AttributeType: S
+          - AttributeName: sid
+            AttributeType: S
+        KeySchema:
+          - AttributeName: site
+            KeyType: HASH
+          - AttributeName: sid
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 3
+```
+最终的配置文件如上所示。我们给这个Lambda函数设置了环境变量，可以在项目中通过
+
+```python
+table=dynamodb.Table(os.environ['USERS_TABLE'])
+```
+调用这一表。同样的，我们也可以设置其他的环境变量区分线上与线下环境，这样就不用在部署的时候二次修改代码，例如
+```python
+IS_OFFLINE = os.environ.get("IS_OFFLINE")
+if IS_OFFLINE:
+    dynamodb = boto3.resource("dynamodb", endpoint_url="http://localhost:4567")
+    table = dynamodb.Table("ptgen")
+else:
+    dynamodb = boto3.resource("dynamodb", region_name="ap-southeast-1")
+    table = dynamodb.Table(os.environ["USERS_TABLE"])
+```
+
+## 结语
+
+按照上一篇中的方法`sls deploy`即可完成部署，部署过程中，sls会帮你新建一个Table。这样便完成了全部功能的迁移，下一篇我们来讲讲如何进一步的节约Lambda的成本，并对缓存设置自动销毁。
