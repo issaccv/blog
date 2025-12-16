@@ -3,7 +3,7 @@ import type { IconMap, SocialLink, Site } from '@/types'
 export const SITE: Site = {
   title: 'issacc Blog',
   description: 'Anything about AI, Python and HomeLab',
-  href: 'https://blog.issacc.bid',
+  href: 'https://www.issacc.top',
   author: 'issacc',
   locale: 'zh-CN',
   featuredPostCount: 3,
