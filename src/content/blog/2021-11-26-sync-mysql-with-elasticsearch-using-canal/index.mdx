@@ -17,12 +17,24 @@ authors: ['issacc']
 
 ## Get familiar with canal
 
-在使用docker部署canal前我个人建议先在容器外跑一遍，因为canal的Dockerfile写的实在是不怎么样。正如上文提到的，canal使用了“生产-消费”模型，在本文的场景中，生产者是MySQL，而消费者是Elasticsearch。而canal和canal-adapter则在生产者和消费者之间作为消息传递的通道。```MySQL-canal-canal-adapter-Elasticsearch```canal通过对消息队列的支持实现生产消费的进一步解耦，支持Kafka和RocketMQ。同时也支持Promethus的指标监控，方便实现异常报警。```MySQL-canal-Kafka/RocketMQ-canal-adapter-Elasticsearch```canal也原生支持[keepalived](https://www.redhat.com/sysadmin/keepalived-basics)高可用，在局域网环境下通过VRRP做到无缝切换主备节点。
+在使用docker部署canal前我个人建议先在容器外跑一遍，因为canal的Dockerfile写的实在是不怎么样。正如上文提到的，canal使用了“生产-消费”模型，在本文的场景中，生产者是MySQL，而消费者是Elasticsearch。而canal和canal-adapter则在生产者和消费者之间作为消息传递的通道。
+```
+MySQL->canal->canal-adapter->Elasticsearch
+```
+canal通过对消息队列的支持实现生产消费的进一步解耦，支持Kafka和RocketMQ。同时也支持Promethus的指标监控，方便实现异常报警。
+```
+MySQL->canal->Kafka/RocketMQ->canal-adapter->Elasticsearch
+```
+canal也原生支持[keepalived](https://www.redhat.com/sysadmin/keepalived-basics)高可用，在局域网环境下通过VRRP做到无缝切换主备节点。
 
 ## How to do
 
-```markdown
-Environment:-Canal:v1.1.5-Canal-adapter:v1.1.5-Elasticsearch:v7.14.2-MySQL:8.0.x
+```yaml
+Environment:
+ - Canal: v1.1.5
+ - Canal-adapter: v1.1.5
+ - Elasticsearch: v7.14.2
+ - MySQL: 8.0.x
 ```
 之所以要表明环境是因为canal在1.1.5的release中仍然存在一些小问题，不过我们可以通过重新打包的方式解决，如果canal发布了新的版本，文本的问题解决部分还需要结合实际情况食用。
 
@@ -60,14 +72,13 @@ conf/
             └── sqlmap_snapshot.xml
 ```
 前者记录了canal监听的端口（TCP模式）以及消息队列相关的配置，这里只需要更改
-```
+```ini
 canal.destination={设置的canal名称}
 ```
 
 并且在conf目录下新建同名文件夹。将example下的instance.properties复制到其中，接下来需要在其中设置MySQL的链接信息，并使用正则表达式过滤需要的数据库和表：
 
-```shell
-
+```ini
 canal.instance.master.address=127.0.0.1:3306
 canal.instance.dbUsername=root
 canal.instance.dbPassword=password

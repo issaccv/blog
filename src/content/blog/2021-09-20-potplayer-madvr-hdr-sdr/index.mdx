@@ -27,7 +27,7 @@ import Callout from '@/components/Callout.astro'
 
 ### AMD
 
-在显示器设置选项卡中，将像素格式改为“RGB4:4:4PixelFormatPCStandard(FullRGB)”
+在显示器设置选项卡中，将像素格式改为“RGB 4:4:4 Pixel Format PC Standard (FullRGB)”
 
 ## 0x02 Potplayer选项设置
 ### 滤镜部分
@@ -45,7 +45,7 @@ import Callout from '@/components/Callout.astro'
 
 ### 更改HDR映射设置
 
-然后运行`madHcCtrl.exe`这样，就可以在托盘找到madVR，右键这个图标，选择`EditmadVRSettings`。在Device选项卡下，可以看到你的显示器名称，在`properties`中将显示输出范围调整到`PClevels(0-255)`，![madvr-properties.png](http://www.issacc.top/usr/uploads/2021/09/73512028.png)然后在hdr选项卡中，将hdr输出设定改为`tonemapHDRusingpixelshaders`同时调整峰值亮度为你显示器的合适亮度，当然如果你对显示器的亮度参数并不了解，这里可以选择让`letmadVRdecide`。对于想要折腾的玩家，可以使用3DLUT，获得更为自定义的映射曲线![madvr-hdr.png](http://www.issacc.top/usr/uploads/2021/09/3582276630.png)至此，你的Potplayer就可以正确的将HDR视频映射到SDR的显示器上了。
+然后运行`madHcCtrl.exe`这样，就可以在托盘找到madVR，右键这个图标，选择`Edit madVR Settings`。在Device选项卡下，可以看到你的显示器名称，在`properties`中将显示输出范围调整到`PClevels(0-255)`，![madvr-properties.png](http://www.issacc.top/usr/uploads/2021/09/73512028.png)然后在hdr选项卡中，将hdr输出设定改为`tone map HDR using pixel shaders`同时调整峰值亮度为你显示器的合适亮度，当然如果你对显示器的亮度参数并不了解，这里可以选择让`let madVR decide`。对于想要折腾的玩家，可以使用3DLUT，获得更为自定义的映射曲线![madvr-hdr.png](http://www.issacc.top/usr/uploads/2021/09/3582276630.png)至此，你的Potplayer就可以正确的将HDR视频映射到SDR的显示器上了。
 
 ## 0x04后续
 
