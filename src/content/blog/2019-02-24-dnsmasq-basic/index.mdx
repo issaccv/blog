@@ -1,6 +1,6 @@
 ---
-title: "dnsmasq的基本配置(一)"
-description: "多数时候dnsmasq只是一个小小的桥梁，它只能承载那些不大的希望。Dnsmasq是一个非常好用的轻量DNS，但是随着Pi-hole的出现，传统的命令行与配置文件的方式在家用的环境下逐渐消失，但是在一些小规..."
+title: 'dnsmasq的基本配置(一)'
+description: '多数时候dnsmasq只是一个小小的桥梁，它只能承载那些不大的希望。Dnsmasq是一个非常好用的轻量DNS，但是随着Pi-hole的出现，传统的命令行与配置文件的方式在家用的环境下逐渐消失，但是在一些小规...'
 date: 2019-02-24
 tags: []
 # image: './banner.png'
@@ -24,7 +24,7 @@ touch dnsmasq.conf
 
 之后我们就可以细细研究了
 
-```conf
+```ini
 pythonresolv-file=/etc/resolv.dnsmasq.conf ##该参数指定了dnsmasq的上游DNS，类似resolv.conf
 strict-order ##严格按照上述文件中的DNS顺序，对于国内喜欢“抢答”的DNS很有用
 no-resolv ##忽略本机的resolv.conf文件不推荐，这样操作对于后续更改并不是非常有利
@@ -36,6 +36,7 @@ conf-dir=/etc/dnsmasq.d/*.conf ##附加的配置文件该目录下所有.conf都
 clear-on-reload ##重启dnsmasq之后清除缓存
 listen-address=127.0.0.1,192.168.1.2 ##监听地址，局域网可以不填这一项
 ```
+
 常用的dns配置就是这些，配合`hosts`和一些附加的配置文件，我们可以做到动态的去广告。接下来重启`dnsmasq`
 
 ```shell
@@ -52,8 +53,9 @@ sh systemctl status dnsmasq
 
 ### DNS优化在`/etc/dnsmasq.d`下新建一个附加配置文件`speed.conf`
 
-```conf
-address=/.taobao.com/119.29.29.29address=/.google.com/8.8.8.8
+```ini
+address=/.taobao.com/119.29.29.29
+address=/.google.com/8.8.8.8
 ```
 
 这样就简单的实现了一不同域名不同DNS查询的功能，对于apple的一些域名我们可以强制使用香港服务器当然部分开源项目通过对特定域名抓取实现了基于DNS的广告屏蔽功能，相关的项目在github上一搜一堆，这里就不再详述了###hosts优化在addn-hosts指定的文件中添加`hosts`条目，等同于在`/etc/hosts`中添加。当然，在addn-hosts中添加不会更改已有的hosts文件，这对于一些具有特殊要求的群体可以实现快速的hosts切换等功能。

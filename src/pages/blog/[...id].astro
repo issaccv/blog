@@ -115,7 +115,7 @@ const tocSections = await getTOCSections(currentPostId)
           alt={post.data.title}
           width={1200}
           height={630}
-          class="col-span-full mx-auto w-full max-w-5xl object-cover"
+          class="col-span-full mx-auto max-h-80 w-full max-w-5xl object-cover"
         />
       )
     }
@@ -275,7 +275,7 @@ const tocSections = await getTOCSections(currentPostId)
 
           scrollToTopButton.classList.toggle(
             'hidden',
-            window.scrollY <= 300 || isFooterVisible,
+            window.scrollY <= 300 || isFooterVisible
           )
         })
       }

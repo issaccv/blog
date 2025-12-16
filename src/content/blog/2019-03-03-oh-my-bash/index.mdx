@@ -9,14 +9,14 @@ authors: ['issacc']
 
 虽说CLI是一个强调效率的主阵地，但是快不快是几个工具的事情，好不好看可就是一辈子的事情了。毕竟没有颜色的CLI没有灵魂。每天面对着黑白相间的CLI多少有些无聊，就算xshell这样的工具提供了许多自定义的选项，但是仍无法解决颜狗的需求。
 
-早就听过大名鼎鼎的[OhMyZsh](https://github.com/robbyrussell/oh-my-zsh"OhMyZsh")项目，今天就来上手看一看。
+早就听过大名鼎鼎的[OhMyZsh](https://github.com/robbyrussell/oh-my-zsh)项目，今天就来上手看一看。
 
 ## 安装
 
 首先确认一下前置环境```bashaptinstallgit-corezshfonts-powerline```那个字体包是给zsh的部分主题使用的，剩下的安装体验非常愉快，只需一行命令，这个大部分成熟的开源项目都一样。毕竟，降低了门槛，入门的人自然就变多了。
 
 ```zsh
-sh -c "$(curl-fsSLhttps://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"
+sh -c "$(curl-fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"
 ```
 
 ## 配置
@@ -30,15 +30,15 @@ vim~/.zshrc
 ```zsh
 source ~/.zshrc
 ```
-使得更改立即生效，这个时候你的CLI看起来大概是这个样子的![zsh_agno_def.png](https://www.issacc.top/usr/uploads/2019/03/2553588330.png)看起来我们并不需要主机名称，此时可以更改主题文件
+使得更改立即生效，这个时候你的CLI看起来大概是这个样子的![zsh_agno_def.png](./2553588330.png)看起来我们并不需要主机名称，此时可以更改主题文件
 ```zsh
 vim~/.oh-my-zsh/themes/agnoster.zsh-theme
 ```
-![zsh-2.png](https://www.issacc.top/usr/uploads/2019/03/3351035864.png)注释掉这一行就好，然后重新输入
+![zsh-2.png](./3351035864.png)注释掉这一行就好，然后重新输入
 ```zsh
 source ~/.zshrc
 ```
-最终的效果就是这样了![zsh-3.png](https://www.issacc.top/usr/uploads/2019/03/4169975935.png)当然，每个主题里还有很多可调参数，自定义程度很高。
+最终的效果就是这样了![zsh-3.png](./4169975935.png)当然，每个主题里还有很多可调参数，自定义程度很高。
 
 ## 插件
 
@@ -51,12 +51,12 @@ git clone https://github.com/zsh-users/zsh-syntax-highlighting.git
 ```zsh
 vim~/.zshrc
 ```
-![zsh-4.png](https://www.issacc.top/usr/uploads/2019/03/3044656122.png)接下来
+![zsh-4.png](./3044656122.png)接下来
 ```zsh
 source ~/.zshrc
 ```
 
-立即生效![zsh-5.png](https://www.issacc.top/usr/uploads/2019/03/2704766646.png)
+立即生效![zsh-5.png](./2704766646.png)
 
 ## 更新
 

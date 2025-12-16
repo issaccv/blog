@@ -1,6 +1,6 @@
 ---
-title: "AWS Lambda：年轻人的第一次FaaS（一）"
-description: "FaaS（FuctionasaService）函数即服务，它提供了一个平台，允许我们运行某些程序功能，而无需构建和维护程序所依赖的软硬件环境。FaaS很适合作为API服务的实现方式，本系列文章将从[PT-Gen]..."
+title: 'AWS Lambda：年轻人的第一次FaaS（一）'
+description: 'FaaS（FuctionasaService）函数即服务，它提供了一个平台，允许我们运行某些程序功能，而无需构建和维护程序所依赖的软硬件环境。FaaS很适合作为API服务的实现方式，本系列文章将从[PT-Gen]...'
 date: 2019-07-28
 tags: []
 image: './cover.webp'
@@ -12,13 +12,15 @@ import Callout from '@/components/Callout.astro'
 FaaS（FuctionasaService）函数即服务，它提供了一个平台，允许我们运行某些程序功能，而无需构建和维护程序所依赖的软硬件环境。
 
 FaaS很适合作为API服务的实现方式，本系列文章将从[PT-Gen](https://github.com/BFDZ/PT-Gen)这一项目入手，按照TDD的方式，简单介绍如何将现有的项目迁移到FaaS上。
-##  介绍
+
+## 介绍
 
 我们先来说说PT-Gen这个项目，这个项目脱胎于[@Rhilip](https://github.com/Rhilip)的[PT-help](https://github.com/Rhilip/PT-help)，其主要功能是将豆瓣等链接的信息提取出来，转变为PT站点可用的简介形式，因其简单好用而广为人知。说回PT-Gen本身，从PT-help抽离之后，[@BFDZ](https://github.com/BFDZ)使用flask将PT-Gen的功能独立出来，同时将查询结果的数据库缓存转为依赖sqlite，大大降低了部署成本。但是即使是这样，也需要api的提供者有着基本的WebServer知识以及对服务器的维护能力，[@YeZi](https://yukino.nl/)在部署的过程中就遇到了这样或那样的困难。于是，无需运维的FaaS就变成了这样一种场景下的最佳选择。
 
-##  工具的选择
+## 工具的选择
 
 AWS提供了一整套的SDK，并在Lambda上给出了在线IDE，但是对于现有项目的迁移，我们完全不需要重新编写Handler，我们使用另一个工具[serverless](https://serverless.com/)帮我们解决迁移问题。事实上，类似的工具还很多，例如Zappa、Claudia.js等等，但是在前期准备的过程中，发现这些工具虽然简单好用，但是在后期对于函数本身更细节的行为操控上缺乏了应有的直观简洁，故最终选择了serverless。serverless是用nodejs写就的，但是这并不妨碍基于Python项目的部署，而且serverless提供了极为强大的插件功能，能让并不直观的FaaS开发变的简单有效，我们稍后就会见到。serverless的安装也非常简单，只要你配置好了nodejs和npm，然后
+
 ```sh
 npm install -g serverless
 ```
@@ -26,9 +28,8 @@ npm install -g serverless
 即可将serverless安装到全局，我们可以在bash环境中设置一个alias，将命令缩写为sls。
 
 <Callout title="Tips" variant="note">
-在使用serverless之前请先安装并配置好awscli这一官方命令行工具
+  在使用serverless之前请先安装并配置好awscli这一官方命令行工具
 </Callout>
-
 
 ## 从现有项目迁移
 
@@ -52,20 +53,20 @@ custom:
 functions:
   app:
     handler: wsgi.handler
-    events:
-        -http:ANY
-        -http:'ANY{proxy+}'
+    events: -http:ANY
+      -http:'ANY{proxy+}'
 ```
 
-这样，我们就通过这一配置文件，指定了服务名称、运行环境以及handler的入口如果你的API没有类似缓存一样的功能，只是简单的IO或者计算处理，这里可以直接在根目录下使用```shslsdeploy```就可以将整个函数部署，此时，serverless会自动帮你把代码中的库打包为压缩文件并上传到S3中，并返回一个`endpoint_url`。![sls1.png](https://www.issacc.top/usr/uploads/2019/07/2307305534.png)这样，我们就得到了自己的第一个FaaS。Tips-如果你对自己的项目没有十足的把握，serverless提供了本地的测试环境，只需要
+这样，我们就通过这一配置文件，指定了服务名称、运行环境以及handler的入口如果你的API没有类似缓存一样的功能，只是简单的IO或者计算处理，这里可以直接在根目录下使用`shslsdeploy`就可以将整个函数部署，此时，serverless会自动帮你把代码中的库打包为压缩文件并上传到S3中，并返回一个`endpoint_url`。![sls1.png](./2307305534.png)这样，我们就得到了自己的第一个FaaS。Tips-如果你对自己的项目没有十足的把握，serverless提供了本地的测试环境，只需要
 
 ```sh
 sls wsgi serve
 ```
-这样就会在本地运行模拟的Lambda环境，Debug非常方便。这里需要注意的是，这一功能在Windows下并不完善，建议还是在Linux和MacOS上进行FaaS的相关开发。![sls2.png](https://www.issacc.top/usr/uploads/2019/07/1750751500.png)-部署之后如果遇到了`InternalError`，我们可以通过AWSCloudWatch查看log，也可以直接在命令行中输入
+
+这样就会在本地运行模拟的Lambda环境，Debug非常方便。这里需要注意的是，这一功能在Windows下并不完善，建议还是在Linux和MacOS上进行FaaS的相关开发。![sls2.png](./1750751500.png)-部署之后如果遇到了`InternalError`，我们可以通过AWSCloudWatch查看log，也可以直接在命令行中输入
 
 ```sh
 sls logs -f app
 ```
 
-由于我的API已经调试完毕，这里没有可以展示的。AWS Lambda给每个账户提供了每个月400000 GB\*秒和100万次请求的免费套餐，这对于一般的项目原型来说可以说是绰绰有余的。但是需要指出的是，随着内存的减少，CPU的最高频率也被限制，这一点AWSLambda并没有标明，但是在GCP中有很明确的标识。![sls3.png](https://www.issacc.top/usr/uploads/2019/07/3351700350.png)对于PT-Gen这样的项目来说，512MB内存对应的CPU资源，能够使得函数在6s内冷启动并刮削完成所有的数据，当然有省钱的办法，这一点我们后续文章详细说-通过指定不同的stage，我们可以将不同的开发分支区分开来。
+由于我的API已经调试完毕，这里没有可以展示的。AWS Lambda给每个账户提供了每个月400000 GB\*秒和100万次请求的免费套餐，这对于一般的项目原型来说可以说是绰绰有余的。但是需要指出的是，随着内存的减少，CPU的最高频率也被限制，这一点AWSLambda并没有标明，但是在GCP中有很明确的标识。![sls3.png](./3351700350.png)对于PT-Gen这样的项目来说，512MB内存对应的CPU资源，能够使得函数在6s内冷启动并刮削完成所有的数据，当然有省钱的办法，这一点我们后续文章详细说-通过指定不同的stage，我们可以将不同的开发分支区分开来。
