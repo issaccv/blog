@@ -19,7 +19,8 @@ import { pluginLineNumbers } from '@expressive-code/plugin-line-numbers'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
-  site: 'https://blog.issacc.bid',
+  site: 'https://www.issacc.top',
+  // base: '/blog',
   integrations: [
     expressiveCode({
       themes: ['github-light', 'github-dark'],
