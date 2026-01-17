@@ -1,0 +1,104 @@
+---
+title: "macOS异常唤醒排查"
+description: "M系列芯片的MacBook Pro本应拥有优秀的续航，但我却遇到了休眠掉电严重的异常。本文记录了如何通过 pmset 日志定位 rtc/Maintenance 和 AOP 异常唤醒，并对比了 Sleep Aid 与 Flutooth 两种解决方案。"
+date: 2025-12-26
+tags: []
+authors: ['issacc']
+draft: false
+---
+
+我的MacBook Pro已经用了一年多，但是我发现最近晚上盒盖休眠的耗电量明显增加，有时一晚上的耗电甚至会超过20%，这远远超过了我对M系列芯片的预期，如果一两天不用，甚至还会出现亏电关机的情况。这种情况显然和Microsoft Modern Standby非常类似，一个符合直觉的原因就是芯片被频繁的唤醒或者根本没有进入休眠。
+
+## Pmset 日志
+
+macOS其实提供了电源管理的日志，而且可以非常方便的进行排查。
+
+```sh
+$ pmset -g log | grep "DarkWake" | grep " due to "
+2025-12-21 17:52:52 +0800 Wake      DarkWake to FullWake from Deep Idle [CDNVAP] : due to Notification Using AC (Charge:54%) 4 secs
+2025-12-21 17:52:56 +0800 Sleep     Entering DarkWake state due to 'Notification Wake Back to Sleep':TCPKeepAlive=active Using AC (Charge:54%)
+2025-12-22 19:48:17 +0800 DarkWake  DarkWake from Deep Idle [CDNP] : due to smc.70070000 wifibt SMC.OutboxNotEmpty/ Using BATT (Charge:70%) 40 secs
+2025-12-22 19:48:57 +0800 Wake      DarkWake to FullWake from Deep Idle [CDNVA] : due to UserActivity Assertion Using BATT (Charge:70%) 381 secs
+2025-12-22 21:24:15 +0800 DarkWake  DarkWake from Deep Idle [CDNP] : due to smc.70070000 wifibt SMC.OutboxNotEmpty/ Using BATT (Charge:45%) 22 secs
+2025-12-22 21:24:37 +0800 Wake      DarkWake to FullWake from Deep Idle [CDNVAP] : due to Notification Using AC (Charge:45%) 4 secs
+2025-12-22 21:24:41 +0800 Sleep     Entering DarkWake state due to 'Notification Wake Back to Sleep':TCPKeepAlive=active Using AC (Charge:45%) 4 secs
+2025-12-22 21:24:45 +0800 Wake      DarkWake to FullWake from Deep Idle [CDNVA] : due to UserActivity Assertion Using AC (Charge:45%)
+2025-12-25 17:06:48 +0800 DarkWake  DarkWake from Deep Idle [CDN] : due to AOP.OutboxNotEmpty spu_queue_overflow_ep44/ Using BATT (Charge:70%) 45 secs
+2025-12-25 17:44:28 +0800 DarkWake  DarkWake from Deep Idle [CDN] : due to NUB.SPMI0Sw3IRQ nub-spmi0.0x02 rtc/Maintenance Using BATT (Charge:69%) 45 secs
+2025-12-25 18:45:29 +0800 DarkWake  DarkWake from Deep Idle [CDN] : due to NUB.SPMI0Sw3IRQ nub-spmi0.0x02 rtc/Maintenance Using BATT (Charge:68%) 41 secs
+2025-12-25 19:46:29 +0800 DarkWake  DarkWake from Deep Idle [CDN] : due to NUB.SPMI0Sw3IRQ nub-spmi0.0x02 rtc/Maintenance Using BATT (Charge:67%) 45 secs
+2025-12-25 20:39:34 +0800 DarkWake  DarkWake from Deep Idle [CDN] : due to NUB.SPMI0Sw3IRQ nub-spmi0.0x02 rtc/Maintenance Using BATT (Charge:66%) 45 secs
+2025-12-25 21:45:22 +0800 DarkWake  DarkWake from Deep Idle [CDN] : due to smc.70070000 USB-C_plug SMC.OutboxNotEmpty/ Using BATT (Charge:65%) 2 secs
+2025-12-25 21:45:24 +0800 Wake      DarkWake to FullWake from Deep Idle [CDNVA] : due to UserActivity Assertion Using BATT (Charge:65%)
+```
+显然这日志有点冗长，但是我们先来拆解一下pmset的日志格式。第一列是时间，方便计算一下两次电源事件的间隔；第二列是事件类型，标明你的Mac在这时刻的动作，常见的动作有这么几种：
+
+- Wake: 彻底唤醒，比如用户打开MacBook，此时屏幕是点亮的
+- DarkWake: 直译过来就是“暗唤醒”，这时电脑可能是不会点亮的，但是CPU会进入工作状态
+- Sleep: 进入休眠状态，也就是准备进入低功耗状态
+- Assertions：程序申请的电源管理权限，比如“防止休眠”或“防止屏幕变暗”
+- Wake Request：类似定时任务一样的唤醒，比如RTC的维护任务
+
+第三列则是详情，记录了谁触发了时间，并且持续了多长时间，以及当时的电源电量。
+
+这里可以看到我这台Mac的罪魁祸首就是这个`NUB.SPMI0Sw3IRQ nub-spmi0.0x02 rtc/Maintenance`，在12月25号，几乎每隔四十分钟到六十分钟都会唤醒一次，并且每次唤醒都会导致我的电脑耗电1%，这也解释了为什么一晚上能掉电20%。经过一番Google，我发现[很多帖子](https://www.reddit.com/r/macbookpro/comments/qqo4v2/my_m1_max_keeps_switching_between_sleep_and/)建议关闭tcpkeepalive来解决这个问题，但事实上我们看到的25号的日志已经是我关闭tcpkeepalive之后的结果了。
+
+显然，pmset只能告诉我们为什么会被唤醒，但是没办法告诉我们到底谁该为这次唤醒负责。
+
+## 电源事件
+
+这个时候我们需要借助系统报告来看看谁要为唤醒负责，打开“关于本机”->“系统报告”->“电源”，我们可以看到一大堆电源事件的记录：
+
+```txt
+电源事件：
+
+下一个计划的事件：
+
+  appPID：	412
+  类型：	唤醒
+  计划安排：	com.apple.alarm.user-invisible-com.apple.calaccessd.travelEngine.periodicRefreshTimer
+  时间：	2026/1/8 19:40
+  UserVisible：	0
+
+  appPID：	97
+  类型：	唤醒
+  计划安排：	com.apple.alarm.user-invisible-com.apple.osanalytics.hardhighengagementtimer
+  时间：	2026/1/9 07:55
+  UserVisible：	0
+```
+
+对应的，你也可以用`pmset -g sched`命令来查看计划任务：
+
+```sh
+$ pmset -g sched
+Scheduled power events:
+ [0]  wake at 12/27/2025 19:40:34 by 'com.apple.alarm.user-invisible-com.apple.calaccessd.travelEngine.periodicRefreshTimer'
+ [1]  wake at 12/28/2025 07:55:19 by 'com.apple.alarm.user-invisible-com.apple.osanalytics.hardhighengagementtimer'
+```
+
+可以看到这些都是系统的定时任务，并且这些任务即使使用`sudo pmset schedule cancelall`取消之后，过一段时间又会重新出现。并且这也没有办法解释日志中的`AOP.OutboxNotEmpty spu_queue_overflow_ep44`
+
+## 奇怪的解决方案
+
+经过一番搜索，Sleep Aid（一个专门看唤醒的MacOS应用）给出了一个非常粗暴的[解决方案](https://ohanaware.com/blog/2023/09/Ventura-and-hourly-wakes.html)：利用Sleep Aid可以在睡眠前执行脚本，将所有的用户事件先暂停，等真正唤醒之后再恢复。具体来说：
+
+```sh
+# 在睡眠前暂停UserEventAgent 并且取消所有的计划任务
+sudo pkill -STOP UserEventAgent
+pmset sched cancelall
+
+# 在唤醒后恢复UserEventAgent
+sudo pkill -CONT UserEventAgent
+```
+
+显然这个方案能够从“根本”上解决问题，因为UserEventAgent才是这些唤醒任务的发起者。但是这个方案也有明显的缺点，比如Find My和Time Machine等功能都无法正常使用。而且这个方案是强依赖于Sleep Aid这个商业软件的（$25/y），因为睡眠前执行脚本和唤醒后执行脚本的功能并不是macOS原生支持的。
+
+## 另一个奇怪的解决方案
+
+如果我们留意log中的另一个关键词：`AOP.OutboxNotEmpty spu_queue_overflow_ep44`，其中的AOP是M系列芯片的Always On Processor的缩写。而该处理器的主要职责就是处理低功耗状态下的任务，比如音频处理、Siri唤醒词监听、以及RTC维护任务等。既然我们没办法关闭这个处理器，那么就只能想想办法减少唤醒的可能。
+
+事实上，[Flutooth](https://goodsnooze.gumroad.com/l/flutooth)就是利用这样的思路来减少唤醒，这个小工具借助两个快捷指令在睡眠和唤醒时关闭和打开蓝牙和Wi-Fi，从而避免蓝牙设备的唤醒请求。
+
+## 结语
+
+总的来说，macOS的`pmset`工具还是非常强大的，能够非常细粒度的调整在不同工况（电源/电池）下的管理策略。但是由于苹果公司对于自己的M系列芯片的能耗比过于自信，也导致了相比于在Intel时代更加激进的唤醒策略。在经过这样一番折腾之后，我最终选择了Flutooth，因为我并不希望在躺床上戴耳机的时候，MacBook Pro突然被唤醒从而打断音乐播放体验。
