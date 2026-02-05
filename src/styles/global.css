@@ -4,12 +4,12 @@
 
 @theme inline {
   --font-sans:
-    Geist, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+    MapleMono, XWWenkai, Geist, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
     'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   --font-mono:
-    Geist Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    MapleMono, Geist Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     'Liberation Mono', 'Courier New', monospace;
-
+  
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
@@ -25,6 +25,26 @@
   --color-border: var(--border);
   --color-ring: var(--ring);
 }
+
+@font-face {
+  font-family: 'XWWenkai';
+  src: url('/fonts/LXGWWenkai-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+4E00-9FFF, U+3400-4DBF, U+20000-2A6DF, U+2A700-2B73F,
+    U+2B740-2B81F, U+2B820-2CEAF, U+F900-FAFF, U+2F800-2FA1F;
+}
+
+@font-face {
+  font-family: 'MapleMono';
+  src: url('/fonts/MapleMonoNormalNL-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+
+}
+
 
 @font-face {
   font-family: 'Geist';
