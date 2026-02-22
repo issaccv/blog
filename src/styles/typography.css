@@ -8,7 +8,8 @@
   h4,
   h5,
   h6 {
-    @apply wrap-break-word;
+    @apply wrap-break-word autospace-normal;
+    font-kerning: auto;
   }
 
   h1,
@@ -30,7 +31,7 @@
     @apply text-foreground text-base leading-7;
 
     :where(p):not(:where(.not-prose, .not-prose *)) {
-      @apply text-foreground/80 my-5;
+      @apply text-foreground/80 my-5 indent-[2em];
     }
 
     :where(h1, h2, h3, h4, h5, h6):not(:where(.not-prose, .not-prose *)) {
