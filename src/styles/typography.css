@@ -8,7 +8,7 @@
   h4,
   h5,
   h6 {
-    @apply wrap-break-word autospace-normal;
+    @apply autospace-normal wrap-break-word;
     font-kerning: auto;
   }
 
