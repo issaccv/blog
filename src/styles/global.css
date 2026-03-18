@@ -87,8 +87,9 @@
 
 @layer base {
   html {
-    /* Keep the layout width stable between short and scrollable pages. */
-    scrollbar-gutter: stable;
+    /* Keep the viewport width stable between short and scrollable pages. */
+    overflow-y: scroll;
+    scrollbar-gutter: stable both-edges;
   }
 
   *,
