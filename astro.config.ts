@@ -33,6 +33,18 @@ export default defineConfig({
   devToolbar: {
     enabled: false,
   },
+  image: {
+    service: {
+      entrypoint: 'astro/assets/services/sharp',
+      // Keep generated images consistent without repeating codec options.
+      config: {
+        jpeg: { mozjpeg: true },
+        webp: { effort: 6, alphaQuality: 80 },
+        avif: { effort: 4, chromaSubsampling: '4:2:0' },
+        png: { compressionLevel: 9 },
+      },
+    },
+  },
   markdown: {
     syntaxHighlight: false,
     rehypePlugins: [
